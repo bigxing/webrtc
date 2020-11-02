@@ -31,9 +31,11 @@ func (t *RTPTransceiver) Sender() *RTPSender {
 }
 
 // SetSender sets the RTPSender and Track to current transceiver
-func (t *RTPTransceiver) SetSender(s *RTPSender, track *Track) error {
+func (t *RTPTransceiver) SetSender(s *RTPSender, track TrackLocal) error {
 	t.setSender(s)
-	return t.setSendingTrack(track)
+	return nil
+	// TODO Sean-Der
+	// return t.setSendingTrack(track)
 }
 
 func (t *RTPTransceiver) setSender(s *RTPSender) {
@@ -101,26 +103,26 @@ func (t *RTPTransceiver) setDirection(d RTPTransceiverDirection) {
 	t.direction.Store(d)
 }
 
-func (t *RTPTransceiver) setSendingTrack(track *Track) error {
-	t.Sender().setTrack(track)
-	if track == nil {
-		t.setSender(nil)
-	}
-
-	switch {
-	case track != nil && t.Direction() == RTPTransceiverDirectionRecvonly:
-		t.setDirection(RTPTransceiverDirectionSendrecv)
-	case track != nil && t.Direction() == RTPTransceiverDirectionInactive:
-		t.setDirection(RTPTransceiverDirectionSendonly)
-	case track == nil && t.Direction() == RTPTransceiverDirectionSendrecv:
-		t.setDirection(RTPTransceiverDirectionRecvonly)
-	case track == nil && t.Direction() == RTPTransceiverDirectionSendonly:
-		t.setDirection(RTPTransceiverDirectionInactive)
-	default:
-		return errRTPTransceiverSetSendingInvalidState
-	}
-	return nil
-}
+// func (t *RTPTransceiver) setSendingTrack(track *Track) error {
+// 	t.Sender().setTrack(track)
+// 	if track == nil {
+// 		t.setSender(nil)
+// 	}
+//
+// 	switch {
+// 	case track != nil && t.Direction() == RTPTransceiverDirectionRecvonly:
+// 		t.setDirection(RTPTransceiverDirectionSendrecv)
+// 	case track != nil && t.Direction() == RTPTransceiverDirectionInactive:
+// 		t.setDirection(RTPTransceiverDirectionSendonly)
+// 	case track == nil && t.Direction() == RTPTransceiverDirectionSendrecv:
+// 		t.setDirection(RTPTransceiverDirectionRecvonly)
+// 	case track == nil && t.Direction() == RTPTransceiverDirectionSendonly:
+// 		t.setDirection(RTPTransceiverDirectionInactive)
+// 	default:
+// 		return errRTPTransceiverSetSendingInvalidState
+// 	}
+// 	return nil
+// }
 
 func findByMid(mid string, localTransceivers []*RTPTransceiver) (*RTPTransceiver, []*RTPTransceiver) {
 	for i, t := range localTransceivers {
@@ -163,7 +165,7 @@ func satisfyTypeAndDirection(remoteKind RTPCodecType, remoteDirection RTPTransce
 
 // handleUnknownRTPPacket consumes a single RTP Packet and returns information that is helpful
 // for demuxing and handling an unknown SSRC (usually for Simulcast)
-func handleUnknownRTPPacket(buf []byte, sdesMidExtMap, sdesStreamIDExtMap *sdp.ExtMap) (mid, rid string, payloadType uint8, err error) {
+func handleUnknownRTPPacket(buf []byte, sdesMidExtMap, sdesStreamIDExtMap *sdp.ExtMap) (mid, rid string, payloadType PayloadType, err error) {
 	rp := &rtp.Packet{}
 	if err = rp.Unmarshal(buf); err != nil {
 		return
@@ -173,7 +175,7 @@ func handleUnknownRTPPacket(buf []byte, sdesMidExtMap, sdesStreamIDExtMap *sdp.E
 		return
 	}
 
-	payloadType = rp.PayloadType
+	payloadType = PayloadType(rp.PayloadType)
 	if payload := rp.GetExtension(uint8(sdesMidExtMap.Value)); payload != nil {
 		mid = string(payload)
 	}
